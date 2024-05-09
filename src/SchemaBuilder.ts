@@ -1,5 +1,4 @@
 import Ajv, { Options } from "ajv"
-import VError from "verror"
 import _ from "lodash"
 import addFormats from "ajv-formats"
 import { JsonSchemaType } from "./JsonSchemaType.js"
@@ -22,6 +21,7 @@ import {
 import { JSONSchema, JSONSchemaTypeName } from "./JsonSchema.js"
 import { throughJsonSchema, cloneJSON, setRequired } from "./utils.js"
 import { createPropertyAccessor } from "./PropertyAccessor.js"
+import { SchemaValidationError, VError } from "./Errors.js"
 
 /**
  * Represents a JSON Schema and its type.
@@ -1208,7 +1208,7 @@ function validationError(ajvErrorsText: string, errorsDetails: any) {
             ajvErrors: errorsDetails,
         },
     }
-    return new VError(opt, `Invalid parameters: ${ajvErrorsText}`)
+    return new SchemaValidationError(opt, `Invalid parameters: ${ajvErrorsText}`)
 }
 
 export type JSONSchemaCommonProperties = "title" | "description" | "default" | "examples" | "readOnly" | "writeOnly"
