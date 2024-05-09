@@ -1,1 +1,1 @@
-export type ObjectStringType = 'JSON'
+export type ObjectStringType = 'JSON' | 'YAML'

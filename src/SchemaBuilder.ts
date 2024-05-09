@@ -1035,6 +1035,14 @@ export class SchemaBuilder<T> {
             {
                 return this.Validate(JSON.stringify(objectString))
             }
+            case "YAML":
+            {
+                if (!SB.yamlFunction)
+                {
+                    throw new VError(`Tried converting YAML, but YAML conversion has not been enabled`)
+                }
+                return this.Validate(SB.yamlFunction(objectString))
+            }
             default:
             {
                 throw new VError(`Invalid object string type '${type}'`)
@@ -1050,6 +1058,11 @@ export class SchemaBuilder<T> {
     static EnableDownloading(downloader: (url: string) => Promise<string>)
     {
         this.downloadingFunction = downloader
+    }
+
+    static EnableYAML(converter: (yaml: string) => any)
+    {
+        this.yamlFunction = converter
     }
 
     async FromFile(type: ObjectStringType, filePath: string)
@@ -1100,6 +1113,7 @@ export class SchemaBuilder<T> {
     protected validationFunction: any
     protected static fileSystemFunctions: FileSystemFunctions | undefined
     protected static downloadingFunction: ((filePath: string) => Promise<string>) | undefined
+    protected static yamlFunction: ((yaml: string) => any) | undefined
 
     /**
      * Validate the given list of object against the schema. If any object is invalid, an error is thrown with the appropriate details.
