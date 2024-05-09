@@ -1033,7 +1033,7 @@ export class SchemaBuilder<T> {
         {
             case "JSON":
             {
-                return this.Validate(JSON.stringify(objectString))
+                return this.Validate(JSON.parse(objectString))
             }
             case "YAML":
             {
