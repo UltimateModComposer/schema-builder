@@ -996,7 +996,7 @@ export class SchemaBuilder<T> {
     /**
      * Validate the given object against the schema. If the object is invalid an error is thrown with the appropriate details.
      */
-    Validate(o: T) {
+    Validate(o: any): T {
         // ensure validation function is cached
         this.CacheValidationFunction()
         // run validation
@@ -1005,6 +1005,7 @@ export class SchemaBuilder<T> {
         if (!valid) {
             throw validationError(this.ajv.errorsText(this.validationFunction.errors), this.validationFunction.errors)
         }
+        return o
     }
     protected ajv: any
     protected validationFunction: any
