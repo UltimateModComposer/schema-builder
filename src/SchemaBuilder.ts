@@ -1012,10 +1012,50 @@ export class SchemaBuilder<T> {
         return new SchemaBuilder(schemaObject, this.validationConfig) as any
     }
 
+    protected AddMissing(obj: any) {
+        if (!this.defaultObject) {
+            this.defaultObject = this.Default()
+        }
+
+        function fill(curObj: any, curDef: any) {
+            for (const objKey of Object.keys(curObj)) {
+                if (curDef[objKey] === undefined) {
+                    delete curObj[objKey]
+                }
+            }
+
+            for (const [defKey,defValue] of Object.entries(curDef)) {
+                if (typeof(defValue) === 'object') {
+                    let subObj = curObj[defKey]
+                    if (subObj === undefined) {
+                        curObj[defKey] = _.cloneDeep(defValue)
+                    }
+                    else {
+                        fill(subObj,defValue)
+                    }
+                }
+                else {
+                    if (curObj[defKey] === undefined) {
+                        curObj[defKey] = defValue
+                    }
+                }
+            }
+        }
+        if (obj === undefined) {
+            obj = this.Default()
+        }
+        else {
+            fill(obj,this.defaultObject)
+        }
+        return obj
+    }
     /**
      * Validate the given object against the schema. If the object is invalid an error is thrown with the appropriate details.
      */
-    Validate(o: any): T {
+    Validate(o: any, missing?: 'add_missing'): T {
+        if (missing === 'add_missing') {
+            o = this.AddMissing(o)
+        }
         // ensure validation function is cached
         this.CacheValidationFunction()
         // run validation
@@ -1027,13 +1067,13 @@ export class SchemaBuilder<T> {
         return o
     }
 
-    FromString(type: ObjectStringType, objectString: string)
+    FromString(type: ObjectStringType, objectString: string, missing?: 'add_missing')
     {
         switch (type)
         {
             case "JSON":
             {
-                return this.Validate(JSON.parse(objectString))
+                return this.Validate(JSON.parse(objectString),missing)
             }
             case "YAML":
             {
@@ -1041,7 +1081,7 @@ export class SchemaBuilder<T> {
                 {
                     throw new VError(`Tried converting YAML, but YAML conversion has not been enabled`)
                 }
-                return this.Validate(SB.yamlFunction(objectString))
+                return this.Validate(SB.yamlFunction(objectString),missing)
             }
             default:
             {
@@ -1065,16 +1105,16 @@ export class SchemaBuilder<T> {
         this.yamlFunction = converter
     }
 
-    async FromFile(type: ObjectStringType, filePath: string)
+    async FromFile(type: ObjectStringType, filePath: string, missing?: 'add_missing')
     {
         if (!SB.fileSystemFunctions)
         {
             throw new VError(`Tried reading object from file, but file reading has not been enabled`)
         }
-        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath))
+        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath),missing)
     }
 
-    async FromFileOr(type: ObjectStringType, filePath: string, defValue?: T)
+    async FromFileOr(type: ObjectStringType, filePath: string, defValue?: T,missing?: 'add_missing')
     {
         if (!SB.fileSystemFunctions)
         {
@@ -1093,16 +1133,16 @@ export class SchemaBuilder<T> {
             }
         }
 
-        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath))
+        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath),missing)
     }
 
-    async Download(type: ObjectStringType, url: string)
+    async Download(type: ObjectStringType, url: string, missing?: 'add_missing')
     {
         if (!SB.downloadingFunction)
         {
             throw new VError(`Tried reading object from download, but downloading has not been enabled`)
         }
-        return this.FromString(type, await SB.downloadingFunction(url))
+        return this.FromString(type, await SB.downloadingFunction(url), missing)
     }
 
     Default(): T
@@ -1111,6 +1151,7 @@ export class SchemaBuilder<T> {
     }
     protected ajv: any
     protected validationFunction: any
+    protected defaultObject: T | undefined
     protected static fileSystemFunctions: FileSystemFunctions | undefined
     protected static downloadingFunction: ((filePath: string) => Promise<string>) | undefined
     protected static yamlFunction: ((yaml: string) => any) | undefined
