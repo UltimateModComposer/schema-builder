@@ -22,6 +22,7 @@ import { JSONSchema, JSONSchemaTypeName } from "./JsonSchema.js"
 import { ThroughJsonSchema, CloneJSON, SetRequired } from "./utils.js"
 import { CreatePropertyAccessor } from "./PropertyAccessor.js"
 import { SchemaValidationError, VError } from "./Errors.js"
+import { ObjectStringType } from "./ObjectStringType.js"
 
 /**
  * Represents a JSON Schema and its type.
@@ -1006,6 +1007,21 @@ export class SchemaBuilder<T> {
             throw validationError(this.ajv.errorsText(this.validationFunction.errors), this.validationFunction.errors)
         }
         return o
+    }
+
+    FromString(type: ObjectStringType, objectString: string)
+    {
+        switch (type)
+        {
+            case "JSON":
+            {
+                return this.Validate(JSON.stringify(objectString))
+            }
+            default:
+            {
+                throw new VError(`Invalid object string type '${type}'`)
+            }
+        }
     }
     protected ajv: any
     protected validationFunction: any
