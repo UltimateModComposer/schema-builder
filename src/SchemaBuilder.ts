@@ -128,6 +128,22 @@ export class SchemaBuilder<T> {
         return new SchemaBuilder(s) as any
     }
 
+    static Dict<T>(builder: SchemaBuilder<T>): SchemaBuilder<Record<string, T>>;
+    static Dict<T>(key: string, builder: SchemaBuilder<T>): SchemaBuilder<Record<string, T>>;
+  
+    static Dict<T>(builderOrString: SchemaBuilder<T> | string, builderArg?: SchemaBuilder<T>) {
+        const key = typeof builderOrString === "string" ? builderOrString : "^.*$";
+        const builder = builderArg
+            ? builderArg
+            : (builderOrString as SchemaBuilder<T>);
+        const dict = SB.FromJsonSchema({
+            type: "object",
+            patternProperties: { [key]: builder.Schema },
+            additionalProperties: false
+        });
+        return dict as SchemaBuilder<Record<string, T>>;
+    }
+
     /**
      * Create a number schema
      */
