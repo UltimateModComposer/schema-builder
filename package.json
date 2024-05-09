@@ -1,5 +1,5 @@
 {
-    "name": "@serafin/schema-builder",
+    "name": "@ultimate-mod-composer/schema-builder",
     "version": "0.18.11",
     "description": "A Typescript JSON Schema library that creates a schema and its type at the same time",
     "main": "./lib/cjs/index.js",
@@ -21,7 +21,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/serafin-labs/schema-builder"
+        "url": "https://github.com/UltimateModComposer/schema-builder"
     },
     "dependencies": {
         "ajv": "^8.12.0",
