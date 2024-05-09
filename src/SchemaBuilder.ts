@@ -25,6 +25,7 @@ import { SchemaValidationError, VError } from "./Errors.js"
 import { ObjectStringType } from "./ObjectStringType.js"
 import { DefaultObject } from "./Default.js"
 
+export type FileSystemFunctions = {Read: (filePath: string) => Promise<string>, Exists: (filePath: string) => Promise<boolean>}
 /**
  * Represents a JSON Schema and its type.
  */
@@ -1041,12 +1042,64 @@ export class SchemaBuilder<T> {
         }
     }
 
+    static EnableFileSystem(funcs: FileSystemFunctions)
+    {
+        this.fileSystemFunctions = funcs
+    }
+
+    static EnableDownloading(downloader: (url: string) => Promise<string>)
+    {
+        this.downloadingFunction = downloader
+    }
+
+    async FromFile(type: ObjectStringType, filePath: string)
+    {
+        if (!SB.fileSystemFunctions)
+        {
+            throw new VError(`Tried reading object from file, but file reading has not been enabled`)
+        }
+        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath))
+    }
+
+    async FromFileOr(type: ObjectStringType, filePath: string, defValue?: T)
+    {
+        if (!SB.fileSystemFunctions)
+        {
+            throw new VError(`Tried reading object from file, but file reading has not been enabled`)
+        }
+
+        if (!await SB.fileSystemFunctions.Exists(filePath))
+        {
+            if (defValue !== undefined)
+            {
+                return defValue
+            }
+            else
+            {
+                return this.Default()
+            }
+        }
+
+        return this.FromString(type, await SB.fileSystemFunctions.Read(filePath))
+    }
+
+    async Download(type: ObjectStringType, url: string)
+    {
+        if (!SB.downloadingFunction)
+        {
+            throw new VError(`Tried reading object from download, but downloading has not been enabled`)
+        }
+        return this.FromString(type, await SB.downloadingFunction(url))
+    }
+
     Default(): T
     {
         return DefaultObject(this.Schema,{})
     }
     protected ajv: any
     protected validationFunction: any
+    protected static fileSystemFunctions: FileSystemFunctions | undefined
+    protected static downloadingFunction: ((filePath: string) => Promise<string>) | undefined
 
     /**
      * Validate the given list of object against the schema. If any object is invalid, an error is thrown with the appropriate details.
