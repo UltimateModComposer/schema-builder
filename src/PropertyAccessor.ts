@@ -6,14 +6,14 @@ export type PropertyAccessorPath = (string | number)[]
  * Get a deep property corresponding to the path
  * If any element of the path is missing (-> falsy), this function will return `undefined`
  */
-function getWithPath(path: PropertyAccessorPath, data: any) {
+function GetWithPath(path: PropertyAccessorPath, data: any) {
     return path.reduce((data, pathElement) => (data && pathElement in data ? data[pathElement] : undefined), data)
 }
 
 /**
  * Set a deep property and ensure that any object/array along the path is copied or initialized
  */
-function setWithPath(path: PropertyAccessorPath, data: any, value: any) {
+function SetWithPath(path: PropertyAccessorPath, data: any, value: any) {
     data = { ...data }
     let current: any = data
     for (let i = 0; i < path.length; ++i) {
@@ -139,30 +139,30 @@ export const propertyAccessorReservedProperties = ["get", "set", "path", "schema
  * const pa = createPropertyAccessor<M>().a.b
  * ```
  */
-export function createPropertyAccessor<D>(s?: SchemaBuilder<D>) {
+export function CreatePropertyAccessor<D>(s?: SchemaBuilder<D>) {
     function getSubschema(property: string | number, s?: SchemaBuilder<any>) {
         return s
-            ? s.isArraySchema && typeof property === "number"
-                ? (s.getItemsSubschema() as SchemaBuilder<any>)
-                : (s.getSubschema(property) as SchemaBuilder<any>)
+            ? s.IsArraySchema && typeof property === "number"
+                ? (s.GetItemsSubschema() as SchemaBuilder<any>)
+                : (s.GetSubschema(property) as SchemaBuilder<any>)
             : undefined
     }
     function buildPropertyAccess<V, PATH extends PropertyAccessorPath>(path: PATH, s?: SchemaBuilder<V>): PropertyAccessorBuilder<D, V, PATH> {
         function propertyAccessor<K extends keyof V & (string | number)>(property: K) {
             return buildPropertyAccess<V[K], [...PATH, K]>([...path, property], getSubschema(property, s))
         }
-        propertyAccessor.get = (data: D) => getWithPath(path, data) as V
-        propertyAccessor.set = <D2 extends D>(data: D2, value: V) => setWithPath(path, data, value) as D2
+        propertyAccessor.get = (data: D) => GetWithPath(path, data) as V
+        propertyAccessor.set = <D2 extends D>(data: D2, value: V) => SetWithPath(path, data, value) as D2
         propertyAccessor.path = path
         propertyAccessor.schema = s
         propertyAccessor.transform = <T>(getValueMapping: (value: V) => T, setValueMapping?: (value: T, target: V) => V) => {
             const pa: PropertyAccessorBuilder<D, T, PATH> = buildPropertyAccess(path)
-            pa.get = (data: D) => getValueMapping(getWithPath(path, data) as V)
+            pa.get = (data: D) => getValueMapping(GetWithPath(path, data) as V)
             pa.set = <D2 extends D>(data: D2, value: T) => {
                 if (!setValueMapping) {
                     throw new Error(`'setValueMapping' is not defined for property accessor '${path.join(".")}'`)
                 }
-                return setWithPath(path, data, setValueMapping(value, getWithPath(path, data) as V)) as D2
+                return SetWithPath(path, data, setValueMapping(value, GetWithPath(path, data) as V)) as D2
             }
             return pa
         }

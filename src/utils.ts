@@ -3,10 +3,10 @@ import { JSONSchema } from "./JsonSchema.js"
 /**
  * Like a forEach but deeply on each JsonSchema it founds
  */
-export function throughJsonSchema(schema: JSONSchema | JSONSchema[], action: (schema: JSONSchema) => void) {
+export function ThroughJsonSchema(schema: JSONSchema | JSONSchema[], action: (schema: JSONSchema) => void) {
     if (Array.isArray(schema)) {
         schema.forEach((s) => {
-            throughJsonSchema(s, action)
+            ThroughJsonSchema(s, action)
         })
     } else {
         const type = typeof schema
@@ -16,26 +16,26 @@ export function throughJsonSchema(schema: JSONSchema | JSONSchema[], action: (sc
         action(schema)
         if (schema.properties) {
             for (let property in schema.properties) {
-                throughJsonSchema(schema.properties[property] as JSONSchema, action)
+                ThroughJsonSchema(schema.properties[property] as JSONSchema, action)
             }
         }
         if (schema.oneOf) {
-            schema.oneOf.forEach((s) => throughJsonSchema(s as JSONSchema[], action))
+            schema.oneOf.forEach((s) => ThroughJsonSchema(s as JSONSchema[], action))
         }
         if (schema.allOf) {
-            schema.allOf.forEach((s) => throughJsonSchema(s as JSONSchema[], action))
+            schema.allOf.forEach((s) => ThroughJsonSchema(s as JSONSchema[], action))
         }
         if (schema.anyOf) {
-            schema.anyOf.forEach((s) => throughJsonSchema(s as JSONSchema[], action))
+            schema.anyOf.forEach((s) => ThroughJsonSchema(s as JSONSchema[], action))
         }
         if (schema.items) {
-            throughJsonSchema(schema.items as JSONSchema, action)
+            ThroughJsonSchema(schema.items as JSONSchema, action)
         }
         if (schema.not) {
-            throughJsonSchema(schema.not as JSONSchema, action)
+            ThroughJsonSchema(schema.not as JSONSchema, action)
         }
         if (schema.additionalProperties && typeof schema.additionalProperties !== "boolean") {
-            throughJsonSchema(schema.additionalProperties, action)
+            ThroughJsonSchema(schema.additionalProperties, action)
         }
     }
     return schema
@@ -44,16 +44,16 @@ export function throughJsonSchema(schema: JSONSchema | JSONSchema[], action: (sc
 /**
  * Utility method to deep clone JSON objects
  */
-export function cloneJSON<T>(o: T): T {
+export function CloneJSON<T>(o: T): T {
     if (typeof o !== "object" || o === null) {
         return o
     }
     if (Array.isArray(o)) {
-        return (o as any).map(cloneJSON)
+        return (o as any).map(CloneJSON)
     }
     const r = {} as T
     for (const key in o) {
-        r[key] = cloneJSON(o[key])
+        r[key] = CloneJSON(o[key])
     }
     return r
 }
@@ -61,7 +61,7 @@ export function cloneJSON<T>(o: T): T {
 /**
  * Helper to set required field properly
  */
-export function setRequired(schema: JSONSchema, required: string[]) {
+export function SetRequired(schema: JSONSchema, required: string[]) {
     if (!required || required.length === 0) {
         delete schema.required
     } else {
