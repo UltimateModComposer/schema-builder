@@ -24,6 +24,7 @@ import { CreatePropertyAccessor } from "./PropertyAccessor.js"
 import { SchemaValidationError, VError } from "./Errors.js"
 import { ObjectStringType } from "./ObjectStringType.js"
 import { DefaultObject } from "./Default.js"
+import { JSONUISchema, JSONUISchemaAnyProperties, JSONUISchemaArrayProperties, JSONUISchemaBooleanProperties, JSONUISchemaEnumProperties, JSONUISchemaNumberProperties, JSONUISchemaObjectProperties, JSONUISchemaStringProperties, SplitUISchema } from "./JsonUISchema.js"
 
 export type FileSystemFunctions = {Read: (filePath: string) => Promise<string>, Exists: (filePath: string) => Promise<boolean>}
 /**
@@ -38,10 +39,17 @@ export class SchemaBuilder<T> {
     }
 
     /**
+     * Get the JSON ui schema object
+     */
+    public get UISchema() {
+        return this.uiSchema || {}
+    }
+
+    /**
      * Initialize a new SchemaBuilder instance.
      * /!\ schemaObject must not contain references. If you have references, use something like json-schema-ref-parser library first.
      */
-    constructor(protected schemaObject: JSONSchema, protected validationConfig?: Options) {
+    constructor(protected schemaObject: JSONSchema, protected validationConfig?: Options, protected uiSchema?: JSONUISchema) {
         ThroughJsonSchema(this.schemaObject, (s) => {
             if ("$ref" in s) {
                 throw new VError(`Schema Builder Error: $ref can't be used to initialize a SchemaBuilder. Dereferenced the schema first.`)
@@ -85,17 +93,27 @@ export class SchemaBuilder<T> {
      * }
      */
     static Object<P extends { [k: string]: SchemaBuilder<any> | (SchemaBuilder<any> | undefined)[] }, N extends boolean = false>(
-        schema: Pick<JSONSchema, JSONSchemaObjectProperties>,
+        schemaIn: Pick<JSONSchema, JSONSchemaObjectProperties> & Pick<JSONUISchema,JSONUISchemaObjectProperties>,
         propertiesDefinition: P,
         nullable?: N,
     ): N extends true ? SchemaBuilder<ObjectSchemaDefinition<P> | null> : SchemaBuilder<ObjectSchemaDefinition<P>> {
+        const [schema,uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaObjectProperties>>(schemaIn)
+        uiSchema.items = {}
         const required = [] as string[]
         const properties = {} as NonNullable<JSONSchema["properties"]>
+        let i = 0;
         for (const property in propertiesDefinition) {
             const propertySchema = propertiesDefinition[property]
             if (!Array.isArray(propertySchema) || propertySchema.findIndex((e) => e === undefined) === -1) {
                 required.push(property)
             }
+            const rawPropertySchema = Array.isArray(propertySchema) ? propertySchema : [propertySchema]
+            if (rawPropertySchema.length > 0) {
+                uiSchema.items[property] = { anyOf : rawPropertySchema.map(x=> x === undefined ? {} : x.UISchema)}
+            } else if (rawPropertySchema[0] !== undefined) {
+                uiSchema.items[property] = rawPropertySchema[0].UISchema
+            }
+            uiSchema.items[property]['ui:order'] = i++
             const filteredPropertySchema = Array.isArray(propertySchema) ? propertySchema.filter(<T>(v: T): v is NonNullable<T> => !!v) : propertySchema
             properties[property] = Array.isArray(filteredPropertySchema)
                 ? filteredPropertySchema.length === 1 && filteredPropertySchema[0]
@@ -112,21 +130,22 @@ export class SchemaBuilder<T> {
             ...(required.length > 0 ? { required } : {}),
             additionalProperties: false,
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s,undefined,uiSchema) as any
     }
 
     /**
      * Create a string schema
      */
     static String<N extends boolean = false>(
-        schema: Pick<JSONSchema, JSONSchemaStringProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaStringProperties> & Pick<JSONUISchema, JSONUISchemaStringProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<string | null> : SchemaBuilder<string> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaStringProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
             type: nullable ? ["string", "null"] : "string",
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     static Dict<T>(builder: SchemaBuilder<T>): SchemaBuilder<Record<string, T>>;
@@ -149,42 +168,45 @@ export class SchemaBuilder<T> {
      * Create a number schema
      */
     static Number<N extends boolean = false>(
-        schema: Pick<JSONSchema, JSONSchemaNumberProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaNumberProperties> & Pick<JSONUISchema, JSONUISchemaNumberProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<number | null> : SchemaBuilder<number> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaNumberProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
             type: nullable ? ["number", "null"] : "number",
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
      * Create an integer schema
      */
     static Integer<N extends boolean = false>(
-        schema: Pick<JSONSchema, JSONSchemaNumberProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaNumberProperties> & Pick<JSONUISchema, JSONUISchemaNumberProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<number | null> : SchemaBuilder<number> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaNumberProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
             type: nullable ? ["integer", "null"] : "integer",
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
      * Create a boolean schema
      */
     static Boolean<N extends boolean = false>(
-        schema: Pick<JSONSchema, JSONSchemaBooleanProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaBooleanProperties> & Pick<JSONUISchema, JSONUISchemaBooleanProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<boolean | null> : SchemaBuilder<boolean> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONUISchema, JSONUISchemaBooleanProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
             type: nullable ? ["boolean", "null"] : "boolean",
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
@@ -201,11 +223,12 @@ export class SchemaBuilder<T> {
     /**
      * Create a schema that can represent any value
      */
-    static Any(schema: Pick<JSONSchema, JSONSchemaCommonProperties> = {}): SchemaBuilder<any> {
+    static Any(schemaIn: Pick<JSONSchema, JSONSchemaCommonProperties> & Pick<JSONUISchema, JSONUISchemaAnyProperties> = {}): SchemaBuilder<any> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaCommonProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
@@ -224,9 +247,10 @@ export class SchemaBuilder<T> {
      */
     static Enum<K extends string | number | boolean | null, N extends boolean = false>(
         values: readonly K[],
-        schema: Pick<JSONSchema, JSONSchemaEnumProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaEnumProperties> & Pick<JSONUISchema, JSONUISchemaEnumProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<K | null> : SchemaBuilder<K> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONUISchema, JSONUISchemaEnumProperties>>(schemaIn)
         const types = [] as JSONSchemaTypeName[]
         for (let value of values) {
             if (typeof value === "string" && !types.find((type) => type === "string")) {
@@ -247,7 +271,7 @@ export class SchemaBuilder<T> {
             type: types.length === 1 ? types[0] : types,
             enum: nullable && values.findIndex((v) => v === null) === -1 ? [...values, null] : [...values],
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
@@ -255,15 +279,16 @@ export class SchemaBuilder<T> {
      */
     static Array<U, N extends boolean = false>(
         items: SchemaBuilder<U>,
-        schema: Pick<JSONSchema, JSONSchemaArrayProperties> = {},
+        schemaIn: Pick<JSONSchema, JSONSchemaArrayProperties> & Pick<JSONUISchema, JSONUISchemaArrayProperties> = {},
         nullable?: N,
     ): N extends true ? SchemaBuilder<U[] | null> : SchemaBuilder<U[]> {
+        const [schema, uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaArrayProperties>>(schemaIn)
         let s: JSONSchema = {
             ...CloneJSON(schema),
             type: nullable ? ["array", "null"] : "array",
             items: CloneJSON(items.schemaObject),
         }
-        return new SchemaBuilder(s) as any
+        return new SchemaBuilder(s, undefined, uiSchema) as any
     }
 
     /**
@@ -1359,7 +1384,6 @@ function validationError(ajvErrorsText: string, errorsDetails: any) {
 }
 
 export type JSONSchemaCommonProperties = "title" | "description" | "default" | "examples" | "readOnly" | "writeOnly"
-
 export type JSONSchemaArraySpecificProperties = "maxItems" | "minItems" | "uniqueItems"
 
 export type JSONSchemaArrayProperties = JSONSchemaCommonProperties | JSONSchemaArraySpecificProperties
