@@ -107,7 +107,8 @@ export class SchemaBuilder<T> {
             if (!Array.isArray(propertySchema) || propertySchema.findIndex((e) => e === undefined) === -1) {
                 required.push(property)
             }
-            const rawPropertySchema = Array.isArray(propertySchema) ? propertySchema : [propertySchema]
+            const rawPropertySchema = (Array.isArray(propertySchema) ? propertySchema : [propertySchema])
+                .filter(x=>x !== undefined)
             if (rawPropertySchema.length > 1) {
                 uiSchema[property] = { anyOf : rawPropertySchema.map(x=> x === undefined ? {} : x.UISchema)}
             } else if (rawPropertySchema[0] !== undefined) {
