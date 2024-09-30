@@ -108,7 +108,7 @@ export class SchemaBuilder<T> {
                 required.push(property)
             }
             const rawPropertySchema = Array.isArray(propertySchema) ? propertySchema : [propertySchema]
-            if (rawPropertySchema.length > 0) {
+            if (rawPropertySchema.length > 1) {
                 uiSchema[property] = { anyOf : rawPropertySchema.map(x=> x === undefined ? {} : x.UISchema)}
             } else if (rawPropertySchema[0] !== undefined) {
                 uiSchema[property] = rawPropertySchema[0].UISchema
