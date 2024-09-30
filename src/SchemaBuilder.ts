@@ -98,7 +98,6 @@ export class SchemaBuilder<T> {
         nullable?: N,
     ): N extends true ? SchemaBuilder<ObjectSchemaDefinition<P> | null> : SchemaBuilder<ObjectSchemaDefinition<P>> {
         const [schema,uiSchema] = SplitUISchema<Pick<JSONSchema, JSONSchemaObjectProperties>>(schemaIn)
-        uiSchema.items = {}
         const required = [] as string[]
         const properties = {} as NonNullable<JSONSchema["properties"]>
         let i = 0;
@@ -109,11 +108,11 @@ export class SchemaBuilder<T> {
             }
             const rawPropertySchema = Array.isArray(propertySchema) ? propertySchema : [propertySchema]
             if (rawPropertySchema.length > 0) {
-                uiSchema.items[property] = { anyOf : rawPropertySchema.map(x=> x === undefined ? {} : x.UISchema)}
+                uiSchema[property] = { anyOf : rawPropertySchema.map(x=> x === undefined ? {} : x.UISchema)}
             } else if (rawPropertySchema[0] !== undefined) {
-                uiSchema.items[property] = rawPropertySchema[0].UISchema
+                uiSchema[property] = rawPropertySchema[0].UISchema
             }
-            uiSchema.items[property]['ui:order'] = i++
+            uiSchema[property]['ui:order'] = i++
             const filteredPropertySchema = Array.isArray(propertySchema) ? propertySchema.filter(<T>(v: T): v is NonNullable<T> => !!v) : propertySchema
             properties[property] = Array.isArray(filteredPropertySchema)
                 ? filteredPropertySchema.length === 1 && filteredPropertySchema[0]
